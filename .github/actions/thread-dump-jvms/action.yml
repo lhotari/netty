@@ -30,7 +30,9 @@ runs:
             sudo /tmp/jattach $java_pid jcmd GC.heap_info
           done
         else
-          echo "NOT LINUX"
+          echo "NOT LINUX '$OSTYPE'"
+          jps
+          powershell -command "get-process"
           jps -q -J-XX:+PerfDisableSharedMem
           for java_pid in $(jps -q -J-XX:+PerfDisableSharedMem); do
             echo "----------------------- pid $java_pid -----------------------"
