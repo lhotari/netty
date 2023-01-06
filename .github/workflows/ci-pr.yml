@@ -58,6 +58,10 @@ jobs:
       - name: Build project
         run: ./mvnw.cmd -B -ntp --file pom.xml clean package -Pboringssl -DskipHttp2Testsuite=true -DskipAutobahnTestsuite=true
 
+      - name: print JVM thread dumps when cancelled
+        uses: ./.github/actions/thread-dump-jvms
+        if: cancelled()
+
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v2
@@ -73,9 +77,6 @@ jobs:
             **/target/surefire-reports/
             **/hs_err*.log
 
-      - name: print JVM thread dumps when cancelled
-        uses: ./.github/actions/thread-dump-jvms
-        if: cancelled()
 
   build-pr:
     runs-on: ubuntu-latest
@@ -145,6 +146,10 @@ jobs:
       - name: Checking for detected leak
         run: ./.github/scripts/check_leak.sh build-leak.output
 
+      - name: print JVM thread dumps when cancelled
+        uses: ./.github/actions/thread-dump-jvms
+        if: cancelled()
+
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v2
@@ -161,10 +166,6 @@ jobs:
             **/target/autobahntestsuite-reports/
             **/hs_err*.log
             **/core.*
-
-      - name: print JVM thread dumps when cancelled
-        uses: ./.github/actions/thread-dump-jvms
-        if: cancelled()
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
