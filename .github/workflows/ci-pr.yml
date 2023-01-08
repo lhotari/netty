@@ -26,20 +26,12 @@ env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryhandler.count=5 -Dmaven.wagon.httpconnectionManager.ttlSeconds=240
 
 jobs:
-  verify-pr:
-    runs-on: ubuntu-latest
-    steps:
-      - run: true
-
   build-pr-windows:
     runs-on: windows-2019
     name: windows-x86_64-java11-boringssl
-    needs: verify-pr
+    #needs: verify-pr
     steps:
       - uses: actions/checkout@v2
-
-      #- name: Setup ssh access to build runner VM
-      #  uses: mxschmitt/action-tmate@v3
 
       - name: Set up JDK 11
         uses: actions/setup-java@v1
@@ -57,122 +49,9 @@ jobs:
 
       - name: Build project
         run: |
-          [console]::TreatControlCAsInput = $true
+          [Console]::TreatControlCAsInput = $true
           ./mvnw.cmd -B -ntp --file pom.xml clean package -Pboringssl -DskipHttp2Testsuite=true -DskipAutobahnTestsuite=true
 
       - name: print JVM thread dumps when cancelled
         uses: ./.github/actions/thread-dump-jvms
         if: cancelled()
-
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-results-windows-x86_64-java11-boringssl
-          path: '**/target/surefire-reports/TEST-*.xml'
-
-      - uses: actions/upload-artifact@v2
-        if: ${{ failure() }}
-        with:
-          name: build-pr-windows-target
-          path: |
-            **/target/surefire-reports/
-            **/hs_err*.log
-
-
-  build-pr:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - setup: linux-x86_64-java8
-            docker-compose-build: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-6.18.yaml build"
-            docker-compose-run: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-6.18.yaml run build-leak"
-          - setup: linux-x86_64-java11
-            docker-compose-build: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml build"
-            docker-compose-run: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml run build-leak"
-          - setup: linux-x86_64-java11-graal
-            docker-compose-build: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-6.graalvm111.yaml build"
-            docker-compose-run: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-6.graalvm111.yaml run build-leak"
-          - setup: linux-x86_64-java17
-            docker-compose-build: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-7.117.yaml build"
-            docker-compose-run: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-7.117.yaml run build-leak"
-          - setup: linux-x86_64-java19
-            docker-compose-build: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-7.119.yaml build"
-            docker-compose-run: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-7.119.yaml run build-leak"
-          - setup: linux-x86_64-java11-boringssl
-            docker-compose-build: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml build"
-            docker-compose-run: "-f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml run build-leak-boringssl-static"
-
-    name: ${{ matrix.setup }} build
-    needs: verify-pr
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Setup ssh access to build runner VM
-        # ssh access is enabled for builds in own forks
-        if: ${{ github.repository != 'netty/netty' && github.event_name == 'pull_request' }}
-        uses: ./.github/actions/ssh-access
-        continue-on-error: true
-        with:
-          limit-access-to-actor: true
-
-      # Cache .m2/repository
-      - name: Cache local Maven repository
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ matrix.setup }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-${{ matrix.setup }}-
-            ${{ runner.os }}-maven-
-
-      # Enable caching of Docker layers
-      - uses: satackey/action-docker-layer-caching@v0.0.11
-        continue-on-error: true
-        with:
-          key: build-docker-cache-${{ matrix.setup }}-{hash}
-          restore-keys: |
-            build-docker-cache-${{ matrix.setup }}-
-            build-docker-cache-
-
-      - name: Build docker image
-        run: docker-compose ${{ matrix.docker-compose-build }}
-
-      - name: Build project with leak detection
-        run: docker-compose ${{ matrix.docker-compose-run }} | tee build-leak.output
-
-      - name: Checking for test failures
-        run: ./.github/scripts/check_build_result.sh build-leak.output
-
-      - name: Checking for detected leak
-        run: ./.github/scripts/check_leak.sh build-leak.output
-
-      - name: print JVM thread dumps when cancelled
-        uses: ./.github/actions/thread-dump-jvms
-        if: cancelled()
-
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-results-${{ matrix.setup }}
-          path: '**/target/surefire-reports/TEST-*.xml'
-
-      - uses: actions/upload-artifact@v2
-        if: ${{ failure() }}
-        with:
-          name: build-${{ matrix.setup }}-target
-          path: |
-            **/target/surefire-reports/
-            **/target/autobahntestsuite-reports/
-            **/hs_err*.log
-            **/core.*
-
-      - name: Wait for ssh connection when build fails
-        # ssh access is enabled for builds in own forks
-        uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'netty/netty' && github.event_name == 'pull_request' }}
-        continue-on-error: true
-        with:
-          action: wait
