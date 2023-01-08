@@ -56,8 +56,9 @@ jobs:
             pr-windows-x86_64-maven-cache-
 
       - name: Build project
-        run: mvnw.cmd -B -ntp --file pom.xml clean package -Pboringssl -DskipHttp2Testsuite=true -DskipAutobahnTestsuite=true
-        shell: cmd
+        run: |
+          [console]::TreatControlCAsInput = $true
+          ./mvnw.cmd -B -ntp --file pom.xml clean package -Pboringssl -DskipHttp2Testsuite=true -DskipAutobahnTestsuite=true
 
       - name: print JVM thread dumps when cancelled
         uses: ./.github/actions/thread-dump-jvms
