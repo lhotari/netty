@@ -49,7 +49,11 @@ jobs:
 
       - name: Build project
         run: |
-          [Console]::TreatControlCAsInput = $true
+          try {
+            [Console]::TreatControlCAsInput = $true
+          } catch {
+            Write-Output "Cannot disable CTRL-C"
+          }
           ./mvnw.cmd -B -ntp --file pom.xml clean package -Pboringssl -DskipHttp2Testsuite=true -DskipAutobahnTestsuite=true
 
       - name: print JVM thread dumps when cancelled
