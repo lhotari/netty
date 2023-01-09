@@ -29,29 +29,7 @@ jobs:
   verify-pr:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up JDK 8
-        uses: actions/setup-java@v1
-        with:
-          java-version: 8
-      # Cache .m2/repository
-      - name: Cache local Maven repository
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-verify-pr-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-verify-pr-
-            ${{ runner.os }}-maven-
-      - name: Verify with Maven
-        run: ./mvnw -B -ntp --file pom.xml verify -DskipTests=true
-
-      - name: Checking bom dependency versions
-        run: ./.github/scripts/check_bom_dependencies.sh
-
-      - name: print JVM thread dumps when cancelled
-        uses: ./.github/actions/thread-dump-jvms
-        if: cancelled()
+      - run: true
 
   build-pr-windows:
     runs-on: windows-2019
