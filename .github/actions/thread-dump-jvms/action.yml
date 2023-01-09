@@ -31,17 +31,17 @@ runs:
           for java_pid in $(sudo pgrep java); do
             echo "----------------------- pid $java_pid -----------------------"
             echo "command line: $(sudo cat /proc/$java_pid/cmdline | xargs -0 echo)"
+            sudo /tmp/jattach $java_pid jcmd VM.command_line || true
             sudo /tmp/jattach $java_pid jcmd "Thread.print -l"
-            sudo /tmp/jattach $java_pid jcmd GC.heap_info
+            sudo /tmp/jattach $java_pid jcmd GC.heap_info || true
           done
         else
-          while read -a line; do
-            java_pid=${line[0]}
+          for java_pid in $(jps -q -J-XX:+PerfDisableSharedMem); do
             echo "----------------------- pid $java_pid -----------------------"
-            echo "command line: ${line[*]:1}"
+            jcmd $java_pid VM.command_line || true
             jcmd $java_pid Thread.print -l
-            jcmd $java_pid GC.heap_info
-          done <<< $(jps -v -J-XX:+PerfDisableSharedMem)
+            jcmd $java_pid GC.heap_info || true
+          done
         fi
         exit 0
       shell: bash
