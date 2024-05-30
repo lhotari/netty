@@ -72,7 +72,6 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSession;
 
-import static io.netty.buffer.ByteBufUtil.ensureWritableSuccess;
 import static io.netty.handler.ssl.SslUtils.NOT_ENOUGH_DATA;
 import static io.netty.handler.ssl.SslUtils.getEncryptedPacketLength;
 import static io.netty.util.internal.ObjectUtil.checkNotNull;
@@ -2434,19 +2433,6 @@ public class SslHandler extends ByteToMessageDecoder implements ChannelOutboundH
     }
 
     private static boolean attemptCopyToCumulation(ByteBuf cumulation, ByteBuf next, int wrapDataSize) {
-        final int inReadableBytes = next.readableBytes();
-        final int cumulationCapacity = cumulation.capacity();
-        if (wrapDataSize - cumulation.readableBytes() >= inReadableBytes &&
-                // Avoid using the same buffer if next's data would make cumulation exceed the wrapDataSize.
-                // Only copy if there is enough space available and the capacity is large enough, and attempt to
-                // resize if the capacity is small.
-                (cumulation.isWritable(inReadableBytes) && cumulationCapacity >= wrapDataSize ||
-                        cumulationCapacity < wrapDataSize &&
-                                ensureWritableSuccess(cumulation.ensureWritable(inReadableBytes, false)))) {
-            cumulation.writeBytes(next);
-            next.release();
-            return true;
-        }
         return false;
     }
 
