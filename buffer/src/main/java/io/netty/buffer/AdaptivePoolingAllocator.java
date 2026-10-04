@@ -2149,6 +2149,8 @@ final class AdaptivePoolingAllocator {
         // this both act as adjustment and the start index for a free list segment allocation
         private int startIndex;
         private AbstractByteBuf rootParent;
+        // the root buffer's memory address, which doesn't change while this buffer holds a segment of its chunk
+        private long rootMemoryAddress;
         Chunk chunk;
         private int length;
         private int maxFastCapacity;
@@ -2171,6 +2173,7 @@ final class AdaptivePoolingAllocator {
             setIndex0(readerIndex, writerIndex);
             hasArray = unwrapped.hasArray();
             hasMemoryAddress = unwrapped.hasMemoryAddress();
+            rootMemoryAddress = unwrapped._memoryAddress();
             rootParent = unwrapped;
             tmpNioBuf = null;
 
@@ -2284,8 +2287,9 @@ final class AdaptivePoolingAllocator {
 
         @Override
         long _memoryAddress() {
-            AbstractByteBuf root = rootParent;
-            return root != null ? root._memoryAddress() + startIndex : 0L;
+            // Not root._memoryAddress(), which checks that the root is accessible twice on every call: the root stays
+            // accessible while this buffer holds a segment of its chunk.
+            return rootParent != null ? rootMemoryAddress + startIndex : 0L;
         }
 
         @Override

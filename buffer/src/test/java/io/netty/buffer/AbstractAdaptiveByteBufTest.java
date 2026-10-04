@@ -15,8 +15,12 @@
  */
 package io.netty.buffer;
 
+import io.netty.util.internal.PlatformDependent;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 public abstract class AbstractAdaptiveByteBufTest extends AbstractPooledByteBufTest {
     private final AdaptiveByteBufAllocator allocator = new AdaptiveByteBufAllocator();
@@ -27,6 +31,36 @@ public abstract class AbstractAdaptiveByteBufTest extends AbstractPooledByteBufT
     }
 
     protected abstract ByteBuf alloc(AdaptiveByteBufAllocator allocator, int length, int maxCapacity);
+
+    @Test
+    public void testMemoryAddressFollowsTheSegmentAcrossReallocation() {
+        ByteBuf buf = alloc(16, 1 << 20);
+        try {
+            assumeTrue(buf.hasMemoryAddress());
+            for (int i = 0; i < 16; i++) {
+                buf.writeByte(i);
+            }
+            assertMemoryAddressReadsTheContent(buf);
+            // growing beyond the segment moves the buffer to another one
+            for (int i = 16; i < 128 * 1024; i++) {
+                buf.writeByte(i);
+            }
+            assertMemoryAddressReadsTheContent(buf);
+        } finally {
+            buf.release();
+        }
+        if (buf instanceof AbstractByteBuf) {
+            assertEquals(0L, ((AbstractByteBuf) buf)._memoryAddress());
+        }
+    }
+
+    private static void assertMemoryAddressReadsTheContent(ByteBuf buf) {
+        long address = buf.memoryAddress();
+        for (int i = 0; i < buf.writerIndex(); i += 1021) {
+            assertEquals(buf.getByte(i), PlatformDependent.getByte(address + i));
+        }
+        assertEquals(buf.getByte(buf.writerIndex() - 1), PlatformDependent.getByte(address + buf.writerIndex() - 1));
+    }
 
     @Disabled("Assumes the ByteBuf can be cast to PooledByteBuf")
     @Test
