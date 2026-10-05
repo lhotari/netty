@@ -19,21 +19,17 @@ import io.netty.buffer.AdaptiveByteBufAllocator;
 import io.netty.buffer.ByteBuf;
 import io.netty.microbench.util.AbstractMicrobenchmark;
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
-import org.openjdk.jmh.annotations.Warmup;
 
 /**
  * Gets the memory addresses of direct {@link AdaptiveByteBufAllocator} buffers, as a gathering write to a socket does
- * for each buffer that it writes.
+ * for each buffer that it writes. It measures the throughput of the calls with warm caches at a monomorphic call site.
  */
 @State(Scope.Benchmark)
-@Warmup(iterations = 5, time = 1)
-@Measurement(iterations = 10, time = 1)
 public class AdaptiveByteBufMemoryAddressBenchmark extends AbstractMicrobenchmark {
 
     @Param({ "16" })
@@ -50,7 +46,7 @@ public class AdaptiveByteBufMemoryAddressBenchmark extends AbstractMicrobenchmar
         allocator = new AdaptiveByteBufAllocator();
         bufs = new ByteBuf[buffers];
         for (int i = 0; i < buffers; i++) {
-            bufs[i] = allocator.directBuffer(size).writerIndex(size);
+            bufs[i] = allocator.directBuffer(size);
             if (!bufs[i].hasMemoryAddress()) {
                 throw new IllegalStateException("The buffers have no memory address");
             }

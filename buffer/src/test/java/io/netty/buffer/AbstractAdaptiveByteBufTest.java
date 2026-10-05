@@ -34,32 +34,38 @@ public abstract class AbstractAdaptiveByteBufTest extends AbstractPooledByteBufT
 
     @Test
     public void testMemoryAddressFollowsTheSegmentAcrossReallocation() {
-        ByteBuf buf = alloc(16, 1 << 20);
+        assumeTrue(PlatformDependent.hasUnsafe());
+        // two buffers of the same size, so that the second one is likely at a segment offset above zero
+        ByteBuf first = alloc(16, 1 << 20);
+        ByteBuf second = alloc(16, 1 << 20);
+        AbstractByteBuf unwrappedSecond = unwrapToAbstractByteBuf(second);
         try {
-            assumeTrue(buf.hasMemoryAddress());
-            for (int i = 0; i < 16; i++) {
-                buf.writeByte(i);
-            }
-            assertMemoryAddressReadsTheContent(buf);
+            assumeTrue(first.hasMemoryAddress());
+            assertMemoryAddressMatchesTheNioBuffer(first);
+            assertMemoryAddressMatchesTheNioBuffer(second);
             // growing beyond the segment moves the buffer to another one
-            for (int i = 16; i < 128 * 1024; i++) {
-                buf.writeByte(i);
-            }
-            assertMemoryAddressReadsTheContent(buf);
+            second.ensureWritable(128 * 1024);
+            assertMemoryAddressMatchesTheNioBuffer(second);
         } finally {
-            buf.release();
+            first.release();
+            second.release();
         }
-        if (buf instanceof AbstractByteBuf) {
-            assertEquals(0L, ((AbstractByteBuf) buf)._memoryAddress());
-        }
+        assertEquals(0L, unwrappedSecond._memoryAddress());
     }
 
-    private static void assertMemoryAddressReadsTheContent(ByteBuf buf) {
-        long address = buf.memoryAddress();
-        for (int i = 0; i < buf.writerIndex(); i += 1021) {
-            assertEquals(buf.getByte(i), PlatformDependent.getByte(address + i));
+    // The NIO buffer's address is computed from the root buffer separately from memoryAddress(), and comparing the
+    // addresses avoids reading memory through a wrong one.
+    private static void assertMemoryAddressMatchesTheNioBuffer(ByteBuf buf) {
+        assertEquals(PlatformDependent.directBufferAddress(buf.nioBuffer(0, buf.capacity())), buf.memoryAddress());
+    }
+
+    private static AbstractByteBuf unwrapToAbstractByteBuf(ByteBuf buf) {
+        // leak detection and little-endian buffers wrap the AdaptiveByteBuf
+        ByteBuf unwrapped = buf;
+        while (!(unwrapped instanceof AbstractByteBuf)) {
+            unwrapped = unwrapped.unwrap();
         }
-        assertEquals(buf.getByte(buf.writerIndex() - 1), PlatformDependent.getByte(address + buf.writerIndex() - 1));
+        return (AbstractByteBuf) unwrapped;
     }
 
     @Disabled("Assumes the ByteBuf can be cast to PooledByteBuf")
