@@ -34,13 +34,13 @@ public abstract class AbstractAdaptiveByteBufTest extends AbstractPooledByteBufT
 
     @Test
     public void testMemoryAddressFollowsTheSegmentAcrossReallocation() {
-        assumeTrue(PlatformDependent.hasUnsafe());
         // two buffers of the same size, so that the second one is likely at a segment offset above zero
         ByteBuf first = alloc(16, 1 << 20);
         ByteBuf second = alloc(16, 1 << 20);
         AbstractByteBuf unwrappedSecond = unwrapToAbstractByteBuf(second);
         try {
             assumeTrue(first.hasMemoryAddress());
+            assumeTrue(PlatformDependent.hasDirectByteBufferAddress(first.nioBuffer(0, first.capacity())));
             assertMemoryAddressMatchesTheNioBuffer(first);
             assertMemoryAddressMatchesTheNioBuffer(second);
             // growing beyond the segment moves the buffer to another one

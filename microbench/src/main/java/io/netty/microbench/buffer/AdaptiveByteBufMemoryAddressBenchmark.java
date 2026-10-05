@@ -38,12 +38,11 @@ public class AdaptiveByteBufMemoryAddressBenchmark extends AbstractMicrobenchmar
     @Param({ "8192" })
     public int size;
 
-    private AdaptiveByteBufAllocator allocator;
     private ByteBuf[] bufs;
 
     @Setup
     public void setup() {
-        allocator = new AdaptiveByteBufAllocator();
+        AdaptiveByteBufAllocator allocator = new AdaptiveByteBufAllocator();
         bufs = new ByteBuf[buffers];
         for (int i = 0; i < buffers; i++) {
             bufs[i] = allocator.directBuffer(size);
