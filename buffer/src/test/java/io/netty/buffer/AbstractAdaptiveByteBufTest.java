@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 public abstract class AbstractAdaptiveByteBufTest extends AbstractPooledByteBufTest {
@@ -51,6 +53,24 @@ public abstract class AbstractAdaptiveByteBufTest extends AbstractPooledByteBufT
             second.release();
         }
         assertEquals(0L, unwrappedSecond._memoryAddress());
+    }
+
+    @Test
+    public void testMemoryAddressOfBufferWithoutOne() {
+        // two buffers of the same size, so that the second one is likely at a segment offset above zero
+        ByteBuf first = alloc(16, 1 << 20);
+        ByteBuf second = alloc(16, 1 << 20);
+        try {
+            assumeFalse(first.hasMemoryAddress());
+            for (ByteBuf buf : new ByteBuf[] { first, second }) {
+                assertThrows(UnsupportedOperationException.class, buf::memoryAddress);
+                // not the offset in the chunk, which isn't an address
+                assertEquals(0L, unwrapToAbstractByteBuf(buf)._memoryAddress());
+            }
+        } finally {
+            first.release();
+            second.release();
+        }
     }
 
     // The NIO buffer's address is computed from the root buffer separately from memoryAddress(), and comparing the
