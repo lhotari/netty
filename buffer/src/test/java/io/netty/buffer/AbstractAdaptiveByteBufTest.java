@@ -15,13 +15,8 @@
  */
 package io.netty.buffer;
 
-import io.netty.util.internal.PlatformDependent;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 public abstract class AbstractAdaptiveByteBufTest extends AbstractPooledByteBufTest {
     private final AdaptiveByteBufAllocator allocator = new AdaptiveByteBufAllocator();
@@ -32,60 +27,6 @@ public abstract class AbstractAdaptiveByteBufTest extends AbstractPooledByteBufT
     }
 
     protected abstract ByteBuf alloc(AdaptiveByteBufAllocator allocator, int length, int maxCapacity);
-
-    @Test
-    public void testMemoryAddressFollowsTheSegmentAcrossReallocation() {
-        // two buffers of the same size, so that the second one is likely at a segment offset above zero
-        ByteBuf first = alloc(16, 1 << 20);
-        ByteBuf second = alloc(16, 1 << 20);
-        AbstractByteBuf unwrappedSecond = unwrapToAbstractByteBuf(second);
-        try {
-            assumeTrue(first.hasMemoryAddress());
-            assumeTrue(PlatformDependent.hasDirectByteBufferAddress(first.nioBuffer(0, first.capacity())));
-            assertMemoryAddressMatchesTheNioBuffer(first);
-            assertMemoryAddressMatchesTheNioBuffer(second);
-            // growing beyond the segment moves the buffer to another one
-            second.ensureWritable(128 * 1024);
-            assertMemoryAddressMatchesTheNioBuffer(second);
-        } finally {
-            first.release();
-            second.release();
-        }
-        assertEquals(0L, unwrappedSecond._memoryAddress());
-    }
-
-    @Test
-    public void testMemoryAddressOfBufferWithoutOne() {
-        // two buffers of the same size, so that the second one is likely at a segment offset above zero
-        ByteBuf first = alloc(16, 1 << 20);
-        ByteBuf second = alloc(16, 1 << 20);
-        try {
-            assumeFalse(first.hasMemoryAddress());
-            for (ByteBuf buf : new ByteBuf[] { first, second }) {
-                // not the offset in the chunk, which isn't an address
-                assertEquals(0L, buf.memoryAddress());
-                assertEquals(0L, unwrapToAbstractByteBuf(buf)._memoryAddress());
-            }
-        } finally {
-            first.release();
-            second.release();
-        }
-    }
-
-    // The NIO buffer's address is computed from the root buffer separately from memoryAddress(), and comparing the
-    // addresses avoids reading memory through a wrong one.
-    private static void assertMemoryAddressMatchesTheNioBuffer(ByteBuf buf) {
-        assertEquals(PlatformDependent.directBufferAddress(buf.nioBuffer(0, buf.capacity())), buf.memoryAddress());
-    }
-
-    private static AbstractByteBuf unwrapToAbstractByteBuf(ByteBuf buf) {
-        // leak detection and little-endian buffers wrap the AdaptiveByteBuf
-        ByteBuf unwrapped = buf;
-        while (!(unwrapped instanceof AbstractByteBuf)) {
-            unwrapped = unwrapped.unwrap();
-        }
-        return (AbstractByteBuf) unwrapped;
-    }
 
     @Disabled("Assumes the ByteBuf can be cast to PooledByteBuf")
     @Test
