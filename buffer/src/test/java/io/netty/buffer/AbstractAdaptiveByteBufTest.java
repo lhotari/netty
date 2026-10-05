@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -63,8 +62,8 @@ public abstract class AbstractAdaptiveByteBufTest extends AbstractPooledByteBufT
         try {
             assumeFalse(first.hasMemoryAddress());
             for (ByteBuf buf : new ByteBuf[] { first, second }) {
-                assertThrows(UnsupportedOperationException.class, buf::memoryAddress);
                 // not the offset in the chunk, which isn't an address
+                assertEquals(0L, buf.memoryAddress());
                 assertEquals(0L, unwrapToAbstractByteBuf(buf)._memoryAddress());
             }
         } finally {

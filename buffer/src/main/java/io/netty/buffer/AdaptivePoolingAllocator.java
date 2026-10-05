@@ -2287,9 +2287,6 @@ final class AdaptivePoolingAllocator {
 
         @Override
         public long memoryAddress() {
-            if (!hasMemoryAddress) {
-                throw new UnsupportedOperationException();
-            }
             ensureAccessible();
             return _memoryAddress();
         }
